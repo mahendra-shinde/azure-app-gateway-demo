@@ -1,0 +1,15 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vmSize": {
+            "value": "Standard_A1"
+        },
+        "adminUser": {
+            "value": "mahendra"
+        },
+        "adminPassword": {
+            "value": "Password@1234"
+        }
+    }
+}

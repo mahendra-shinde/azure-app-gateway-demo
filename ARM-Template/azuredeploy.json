@@ -1,0 +1,376 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"vmSize":{
+			"type":"string",
+			"defaultValue": "Standard_A1",
+			"metadata":{
+				"description":"Size for VM"
+			}
+		},
+		"location":{
+			"type": "string",
+			"defaultValue": "[resourceGroup().location]"
+		},
+		"adminUser": {
+			"type": "string",
+			"defaultValue": "mahendra",
+			"metadata": {
+				"description": "Admin Username for Linux VM"
+			}
+		},
+		"adminPassword": {
+			"type": "securestring",
+			"defaultValue": "Password@1234",
+			"metadata": {
+				"description": "Admin Password for Linux VM"
+			}
+		},
+		"bastion-prefix":{
+			"type":"string",
+			"defaultValue": "mahendra-0123",
+			"metadata": {
+				"description": "Azure bastion-host URL Prefix"
+			}
+		}
+	},
+	"functions": [],
+	"variables": {
+		"vnet-address-range" : "10.0.0.0/16",
+		"subnet1" :			   "10.0.1.0/24",
+		"subnet2" :			   "10.0.2.0/24",
+		"app-gw-subnet" :	   "10.0.3.0/24",
+		"bastion-subnet":	   "10.0.10.0/24",
+		"strname": "[concat('strg00',uniqueString(resourceGroup().id))]"
+	},
+	"resources": [
+		{
+			"name": "vnet1",
+			"type": "Microsoft.Network/virtualNetworks",
+			"apiVersion": "2020-11-01",
+			"location": "[parameters('location')]",
+			"tags": {
+				"displayName": "Virtual Network for Application"
+			},
+			"properties": {
+				"addressSpace": {
+					"addressPrefixes": [
+						"[variables('vnet-address-range')]"
+					]
+				},
+				"subnets": [
+					{
+						"name": "Subnet-1",
+						"properties": {
+							"addressPrefix": "[variables('subnet1')]"
+						}
+					},
+					{
+						"name": "Subnet-2",
+						"properties": {
+							"addressPrefix": "[variables('subnet2')]"
+						}
+					},
+					{
+						"name": "ApplicationGatewaySubnet",
+						"properties": {
+							"addressPrefix": "[variables('app-gw-subnet')]"
+						}
+					},
+					{
+						"name": "AzureBastionSubnet",
+						"properties": {
+							"addressPrefix": "[variables('bastion-subnet')]"
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "[variables('strname')]",
+			"type": "Microsoft.Storage/storageAccounts",
+			"apiVersion": "2021-04-01",
+			"tags": {
+				"displayName": "Storage Account"
+			},
+			"location": "[parameters('location')]",
+			"kind": "StorageV2",
+			"sku": {
+				"name": "Standard_LRS",
+				"tier": "Standard"
+			}
+		},
+		{
+			"type": "Microsoft.Compute/virtualMachineScaleSets",
+			"apiVersion": "2020-12-01",
+			"name": "images-vmss",
+			"tags": {
+				"SetName": "Images"
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Network/virtualNetworks','vnet1')]"
+			],
+			"location": "[parameters('location')]",
+			"sku": {
+				"name": "[parameters('vmSize')]",
+				"tier": "Standard",
+				"capacity": "2"
+			},
+			"properties": {
+				"overprovision": false,
+				"upgradePolicy": {
+					"mode": "Manual"
+				},
+				"virtualMachineProfile": {
+					"storageProfile": {
+						"osDisk": {
+							"createOption": "FromImage",
+							"caching": "ReadWrite"
+						},
+						"imageReference": {
+							"publisher": "Canonical",
+							"offer": "0001-com-ubuntu-server-focal",
+							"sku": "20_04-lts",
+							"version": "latest"
+						}
+					},
+					"osProfile": {
+						"computerNamePrefix": "images",
+						"adminUsername": "[parameters('adminUser')]",
+						"adminPassword": "[parameters('adminPassword')]"
+					},
+					"networkProfile": {
+						"networkInterfaceConfigurations": [
+							{
+								"name": "nic-1",
+								"properties": {
+									"primary": true,
+									"ipConfigurations": [
+										{
+											"name": "ipconfig-nic2",
+											"properties": {
+												"subnet": {
+													"id": "[resourceId('Microsoft.Network/virtualNetworks/subnets','vnet1','Subnet-2')]"
+												}
+											}
+										}
+									]
+								}
+							}
+						]
+					}
+				}
+			}
+		},
+		{
+			"type": "Microsoft.Compute/virtualMachineScaleSets",
+			"apiVersion": "2020-12-01",
+			"name": "web-vmss",
+			"tags": {
+				"SetName": "Web"
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Network/virtualNetworks','vnet1')]"
+			],
+			"location": "[parameters('location')]",
+			"sku": {
+				"name": "[parameters('vmSize')]",
+				"tier": "Standard",
+				"capacity": "2"
+			},
+			"properties": {
+				"overprovision": false,
+				"upgradePolicy": {
+					"mode": "Manual"
+				},
+				"virtualMachineProfile": {
+					"storageProfile": {
+						"osDisk": {
+							"createOption": "FromImage",
+							"caching": "ReadWrite"
+						},
+						"imageReference": {
+							"publisher": "Canonical",
+							"offer": "0001-com-ubuntu-server-focal",
+							"sku": "20_04-lts",
+							"version": "latest"
+						}
+					},
+					"osProfile": {
+						"computerNamePrefix": "web",
+						"adminUsername": "[parameters('adminUser')]",
+						"adminPassword": "[parameters('adminPassword')]"
+					},
+					"networkProfile": {
+						"networkInterfaceConfigurations": [
+							{
+								"name": "nic-1",
+								"properties": {
+									"primary": true,
+									"ipConfigurations": [
+										{
+											"name": "ipconfig-nic1",
+											"properties": {
+												"subnet": {
+													"id": "[resourceId('Microsoft.Network/virtualNetworks/subnets','vnet1','Subnet-1')]"
+												}
+											}
+										}
+									]
+								}
+							}
+						]
+					}
+				}
+			}
+		},
+		
+		{
+			"type": "Microsoft.Network/networkInterfaces",
+			"apiVersion": "2020-08-01",
+			"name": "nic-1",
+			"location": "[parameters('location')]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Network/virtualNetworks','vnet1')]"
+			],
+			"properties": {
+				"ipConfigurations": [
+					{
+						"name": "ipconfig1",
+						"properties": {
+							"subnet": {
+								"id": "[resourceId('Microsoft.Network/virtualNetworks/subnets','vnet1','Subnet-1')]"
+							},
+							"privateIPAllocationMethod": "Dynamic"
+							
+						}
+					}
+				]
+			}
+		},
+		{
+			"type": "Microsoft.Network/networkInterfaces",
+			"apiVersion": "2020-08-01",
+			"name": "nic-2",
+			"location": "[parameters('location')]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Network/virtualNetworks','vnet1')]"
+			],
+			"properties": {
+				"ipConfigurations": [
+					{
+						"name": "ipconfig1",
+						"properties": {
+							"subnet": {
+								"id": "[resourceId('Microsoft.Network/virtualNetworks/subnets','vnet1','Subnet-2')]"
+							},
+							"privateIPAllocationMethod": "Dynamic"
+							
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "bastion-pub-ip",
+			"type": "Microsoft.Network/publicIPAddresses",
+			"apiVersion": "2020-11-01",
+			"location": "[resourceGroup().location]",
+			"sku":{
+				"name": "Standard",
+				"tier": "Regional"
+			},
+			"tags": {
+				"displayName": "Public IP for Bastion Host"
+			},
+			"properties": {
+				"publicIPAllocationMethod": "Static",
+				"dnsSettings": {
+					"domainNameLabel": "[parameters('bastion-prefix')]"
+				}
+			}
+		},
+		   {
+            "apiVersion": "2018-10-01",
+            "type": "Microsoft.Network/bastionHosts",
+            "name": "bastion1",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+				"[resourceId('Microsoft.Network/virtualNetworks','vnet1')]",
+                "[resourceId('Microsoft.Network/publicIPAddresses','bastion-pub-ip')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "IpConf",
+                        "properties": {
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets','vnet1','AzureBastionSubnet')]"
+                            },
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses','bastion-pub-ip')]"
+                            }
+                        }
+                    }]    
+			}
+		},
+		{
+			"name": "web-vmss/prepare-web",
+			"type": "Microsoft.Compute/virtualMachineScaleSets/extensions",
+			"apiVersion": "2021-03-01",
+			"location": "[resourceGroup().location]",
+			"tags": {
+
+				"SetName": "Web"
+
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Compute/virtualMachineScaleSets','web-vmss')]"
+			],
+			"properties": {
+				"publisher": "Microsoft.Azure.Extensions",
+				"type": "CustomScript",
+				"typeHandlerVersion": "2.1",
+				"autoUpgradeMinorVersion": true,
+				"settings": {
+					"fileUris": [
+						"https://raw.githubusercontent.com/mahendra-shinde/azure-app-gateway-demo/main/ARM-Template/web-vmss-script.sh"
+					]
+				},
+				"protectedSettings": {
+					"commandToExecute": "sh web-vmss-script.sh"
+				}
+			}
+		},
+		{
+			"name": "images-vmss/prepare-images",
+			"type": "Microsoft.Compute/virtualMachineScaleSets/extensions",
+			"apiVersion": "2021-03-01",
+			"location": "[resourceGroup().location]",
+			"tags": {
+			
+				"SetName": "Images"
+			
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Compute/virtualMachineScaleSets','images-vmss')]"
+			],
+			"properties": {
+				"publisher": "Microsoft.Azure.Extensions",
+				"type": "CustomScript",
+				"typeHandlerVersion": "2.1",
+				"autoUpgradeMinorVersion": true,
+				"settings": {
+					"fileUris": [
+						"https://raw.githubusercontent.com/mahendra-shinde/azure-app-gateway-demo/main/ARM-Template/images-vmss-script.sh"
+					]
+				},
+				"protectedSettings": {
+					"commandToExecute": "sh images-vmss-script.sh"
+				}
+			}
+		}
+	],
+	"outputs": {}
+}
