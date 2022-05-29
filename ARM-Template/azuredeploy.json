@@ -2,6 +2,13 @@
 	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
 	"contentVersion": "1.0.0.0",
 	"parameters": {
+		"location":{
+			"type":"string",
+			"defaultValue":"[resourceGroup().location]",
+			"metadata":{
+				"description":"Location for all the resources in template"
+			}
+		},
 		"vmSize":{
 			"type":"string",
 			"defaultValue": "Standard_A1",
@@ -61,6 +68,12 @@
 				},
 				"subnets": [
 					{
+						"name": "ApplicationGatewaySubnet",
+						"properties": {
+							"addressPrefix": "[variables('app-gw-subnet')]"
+						}
+					},
+					{
 						"name": "Subnet-1",
 						"properties": {
 							"addressPrefix": "[variables('subnet1')]"
@@ -70,12 +83,6 @@
 						"name": "Subnet-2",
 						"properties": {
 							"addressPrefix": "[variables('subnet2')]"
-						}
-					},
-					{
-						"name": "ApplicationGatewaySubnet",
-						"properties": {
-							"addressPrefix": "[variables('app-gw-subnet')]"
 						}
 					},
 					{
@@ -292,7 +299,7 @@
 			}
 		},
 		   {
-            "apiVersion": "2018-10-01",
+            "apiVersion": "2020-05-01",
             "type": "Microsoft.Network/bastionHosts",
             "name": "bastion1",
             "location": "[parameters('location')]",
