@@ -22,45 +22,26 @@ Azure Application Gateway demo. Uses path based routing to direct traffic to one
 
 ## How to deploy the Application Gateway and Add both VMSS as two back-end pools.
 
-1.	Goto newly deployed resource group `demo1` (created by previous steps)
-	![AppGateway 1](./images/appgw-01.png)
+1.	Launch azure cloud shell once again to create `Application Gateway` using following script.
 
-1.	Now, Use following steps to locate `Application Gateways` in azure portal
+	```bash
+	az network public-ip create --resource-group demo1 --name pub1
+	az network application-gateway create \
+		--name app-gw1 \
+		--location eastus \
+		--resource-group demo1 \
+		--vnet-name vnet1 \
+		--subnet ApplicationGatewaySubnet \
+		--capacity 2 \
+		--sku Standard_Small \
+		--http-settings-cookie-based-affinity Disabled \
+		--frontend-port 80 \
+		--http-settings-port 80 \
+		--http-settings-protocol Http \
+		--public-ip-address pub1 --priority 1001
+	```
+1.	In Azure portal, search for Application Gatewat
 	![AppGateway 1](./images/appgw-02.png)
-
-	1.	Search for `App Gw` in top search bar
-	
-	1.	Select "Application Gateways" from the search result
-
-
-1.	Click on `Create` button as shown below.
-	![AppGateway 1](./images/appgw-03.png)
-
-1.	Now, fill up information in first tab like below:
-	![AppGateway 1](./images/appgw-04.png)
-	
-	1.	Resource group: enter resource group created earlier.
-	1.	Application Gateway Name: `appGw1`
-	1.	Region : select the same region as resource group
-	1.	Minimum Instance : 0
-	1.	Maximum Instance: 2
-
-1.	Continuing from previous step to create new application gateway
-	![AppGateway 1](./images/appgw-05.png)
-	6.	Select All Availability zone
-
-	7.	Choose the "VNet1" (created by template)
-
-	8.	Select Subnet "ApplicationGatewaySubnet"
-
-	9.	Click `Next: Frontends` button
-
-1.	Now, you need to define a public ip for Application gateway
-	![AppGateway 1](./images/appgw-06.png)
-	1.	Click `Add New` button
-	1.	Enter name for public ip
-	1.	Click `OK`
-	1.	Click `Next: Backends` button
 
 1.	Define the backends now:
 	![AppGateway 1](./images/appgw-07.png)
